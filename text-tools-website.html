@@ -165,28 +165,39 @@
 
         @media (max-width: 768px) {
             body {
-                flex-direction: column;
-                height: auto;
+                position: relative;
+                overflow-x: hidden;
             }
             #sidebar {
                 position: fixed;
-                left: -250px;
+                left: -100%;
                 top: 0;
                 height: 100%;
-                width: 250px;
+                width: 80%;
+                max-width: 250px;
                 transition: 0.3s;
-                z-index: 999;
+                z-index: 1001;
                 padding-top: 50px;
+                background-color: #333;
             }
             #sidebar.open {
                 left: 0;
             }
             .burger-menu {
                 display: block;
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                z-index: 1002;
             }
             #content {
                 margin-left: 0;
                 width: 100%;
+                transition: 0.3s;
+            }
+            body.sidebar-open #content {
+                filter: blur(3px);
+                pointer-events: none;
             }
             h1 {
                 font-size: 24px;
@@ -503,7 +514,15 @@
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
             sidebar.classList.toggle('open');
+            document.body.classList.toggle('sidebar-open');
+            
+            if (sidebar.classList.contains('open')) {
+                content.style.marginLeft = '80%';
+            } else {
+                content.style.marginLeft = '0';
+            }
         }
 
         function addTouchDragListeners() {
@@ -559,6 +578,14 @@
                 });
             }
         }
+
+        const style = document.createElement('style');
+        style.textContent = `
+            body.sidebar-open {
+                overflow: hidden;
+            }
+        `;
+        document.head.appendChild(style);
 
         // Инициализация кнопок и первого режима
         document.addEventListener('DOMContentLoaded', function() {
