@@ -37,7 +37,7 @@
             font-size: 16px;
             margin: 4px 2px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: background-color 0.2s ease;
             border-radius: 10px;
         }
         button:hover {
@@ -71,7 +71,7 @@
             background-color: #444;
             color: white;
             border: none;
-            transition: background-color 0.3s;
+            transition: background-color 0.2s ease;
             border-radius: 10px;
             cursor: pointer;
         }
@@ -123,7 +123,7 @@
             border-radius: 5px;
             display: none;
             opacity: 0;
-            transition: opacity 0.3s ease-in-out;
+            transition: opacity 0.2s ease;
         }
 
         .burger-menu {
@@ -140,7 +140,7 @@
             height: 5px;
             background-color: #333;
             margin: 6px 0;
-            transition: 0.4s;
+            transition: 0.2s ease;
         }
 
         .close-button {
@@ -175,7 +175,7 @@
                 height: 100%;
                 width: 80%;
                 max-width: 250px;
-                transition: 0.3s;
+                transition: 0.2s ease;
                 z-index: 1001;
                 padding-top: 50px;
                 background-color: #333;
@@ -189,7 +189,7 @@
             #content {
                 margin-left: 0;
                 width: 100%;
-                transition: 0.3s;
+                transition: 0.2s ease;
             }
             body.sidebar-open #content {
                 filter: blur(3px);
@@ -274,7 +274,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         #theme-toggle:hover {
@@ -285,7 +285,7 @@
             width: 40px;
             height: 40px;
             fill: #333;
-            transition: fill 0.3s ease;
+            transition: fill 0.2s ease;
         }
 
         body.dark-mode #theme-toggle {
@@ -361,6 +361,17 @@
                 font-size: 1.5em; /* Уменьшаем размер шрифта на мобильных устройствах */
             }
         }
+
+        /* Оптимизация анимаций */
+        .mode-button, #sidebar, #content, .notification {
+            transition: all 0.2s ease; /* Уменьшено время анимации */
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -397,9 +408,8 @@
     <div id="notification" class="notification">Результат скопирован в буфер обмена!</div>
 
     <script>
-        let currentMode = '';
-        let draggedItem = null;
-        const modes = [
+        // Выносим константы и настройки в начало файла
+        const MODES = [
             {id: 'removeDuplicates', name: 'Удалить дубликаты строк'},
             {id: 'shuffleLines', name: 'Перемешать строки'},
             {id: 'changeCase', name: 'Изменить регистр'},
@@ -415,9 +425,11 @@
             {id: 'removeTextAroundSymbol', name: 'Удалить текст до/после символа'}
         ];
 
-        console.log('Modes:', modes);
+        const STORAGE_KEY = 'buttonOrder';
+        const DARK_MODE_KEY = 'darkMode';
 
-        function createModeButtons() {
+        // Используем современный синтаксис для объявления функций
+        const createModeButtons = () => {
             console.log('Creating mode buttons');
             const modeButtons = document.getElementById('mode-buttons');
             if (!modeButtons) {
@@ -426,22 +438,17 @@
             }
             modeButtons.innerHTML = '';
             
-            let order = JSON.parse(localStorage.getItem('buttonOrder')) || modes.map(mode => mode.id);
-            console.log('Initial order from localStorage:', order);
+            let order = JSON.parse(localStorage.getItem(STORAGE_KEY)) || MODES.map(mode => mode.id);
             
-            // Проверяем, есть ли в order все режимы из modes
-            const missingModes = modes.filter(mode => !order.includes(mode.id));
+            // Проверка и добавление отсутствующих режимов
+            const missingModes = MODES.filter(mode => !order.includes(mode.id));
             if (missingModes.length > 0) {
-                console.log('Adding missing modes to order:', missingModes);
                 order = [...order, ...missingModes.map(mode => mode.id)];
-                localStorage.setItem('buttonOrder', JSON.stringify(order));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
             }
             
-            console.log('Updated button order:', order);
-            
             order.forEach((modeId, index) => {
-                const mode = modes.find(m => m.id === modeId);
-                console.log('Creating button for mode:', mode);
+                const mode = MODES.find(m => m.id === modeId);
                 if (mode) {
                     const container = document.createElement('div');
                     container.className = 'mode-button-container';
@@ -455,35 +462,26 @@
                     button.className = 'mode-button';
                     button.textContent = mode.name;
                     button.dataset.modeId = mode.id;
-                    button.addEventListener('click', function() {
-                        setMode(this.dataset.modeId);
-                    });
+                    button.addEventListener('click', () => setMode(mode.id));
 
-                    container.appendChild(dragHandle);
-                    container.appendChild(button);
+                    container.append(dragHandle, button);
                     modeButtons.appendChild(container);
 
-                    // Устанавливаем первую кнопку в списке ка активную по ��молчанию
                     if (index === 0) {
                         setMode(mode.id);
                     }
-                } else {
-                    console.warn('Mode not found for id:', modeId);
                 }
             });
 
             addDragListeners();
-            addTouchDragListeners(); // Добавляем поддержку перетаскивания на сенсорных устройствах
+            addTouchDragListeners();
 
             if (window.innerWidth <= 768) {
-                document.querySelectorAll('.drag-handle').forEach(handle => {
-                    handle.style.display = 'none';
-                });
+                document.querySelectorAll('.drag-handle').forEach(handle => handle.style.display = 'none');
             }
-            console.log('Mode buttons created');
-        }
+        };
 
-        function setMode(mode) {
+        const setMode = (mode) => {
             currentMode = mode;
             document.querySelectorAll('.mode-button').forEach(btn => btn.classList.remove('active'));
             const activeButton = document.querySelector(`.mode-button[data-mode-id="${mode}"]`);
@@ -499,9 +497,9 @@
             if (window.innerWidth <= 768) {
                 toggleSidebar();
             }
-        }
+        };
 
-        function updateOptions() {
+        const updateOptions = () => {
             const optionsDiv = document.getElementById('options');
             optionsDiv.innerHTML = '';
 
@@ -558,17 +556,16 @@
                     `;
                     break;
             }
-        }
+        };
 
-        function processText() {
+        // Оптимизация обработки текста
+        const processText = () => {
             const input = document.getElementById('input');
             if (!input) return;
             const inputValue = input.value;
-            let result = '';
-
-            // Всегда удаляем дубликаты строк
             const uniqueLines = [...new Set(inputValue.split('\n'))];
 
+            let result = '';
             switch (currentMode) {
                 case 'removeDuplicates':
                     result = uniqueLines.join('\n');
@@ -653,20 +650,17 @@
                     result = uniqueLines.join('\n');
             }
 
-            const resultElement = document.getElementById('result');
-            if (resultElement) {
-                resultElement.value = result;
-            }
-        }
+            document.getElementById('result').value = result;
+        };
 
         // Добавьте эту функцию для обновления порядк кнопок в localStorage
-        function saveButtonOrder() {
+        const saveButtonOrder = () => {
             const order = Array.from(document.querySelectorAll('.mode-button-container'))
                 .map(container => container.dataset.modeId);
-            localStorage.setItem('buttonOrder', JSON.stringify(order));
-        }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+        };
 
-        function addDragListeners() {
+        const addDragListeners = () => {
             const containers = document.querySelectorAll('.mode-button-container');
             const modeButtons = document.getElementById('mode-buttons');
 
@@ -692,28 +686,22 @@
 
             modeButtons.addEventListener('dragenter', (e) => e.preventDefault());
             modeButtons.addEventListener('drop', (e) => e.preventDefault());
-        }
+        };
 
-        function addTouchDragListeners() {
+        const addTouchDragListeners = () => {
             const containers = document.querySelectorAll('.mode-button-container');
             const modeButtons = document.getElementById('mode-buttons');
-
-            containers.forEach(container => {
-                container.addEventListener('touchstart', handleTouchStart, false);
-                container.addEventListener('touchmove', handleTouchMove, false);
-                container.addEventListener('touchend', handleTouchEnd, false);
-            });
 
             let draggedItem = null;
             let startY;
 
-            function handleTouchStart(e) {
+            const handleTouchStart = function(e) {
                 draggedItem = this;
                 startY = e.touches[0].clientY - draggedItem.offsetTop;
                 setTimeout(() => draggedItem.classList.add('dragging'), 0);
-            }
+            };
 
-            function handleTouchMove(e) {
+            const handleTouchMove = function(e) {
                 if (!draggedItem) return;
                 e.preventDefault();
                 const currentY = e.touches[0].clientY - modeButtons.offsetTop;
@@ -725,18 +713,24 @@
                 } else {
                     modeButtons.appendChild(draggedItem);
                 }
-            }
+            };
 
-            function handleTouchEnd() {
+            const handleTouchEnd = function() {
                 if (!draggedItem) return;
                 draggedItem.classList.remove('dragging');
                 draggedItem.style.top = '';
                 draggedItem = null;
                 saveButtonOrder();
-            }
-        }
+            };
 
-        function getDragAfterElement(container, y) {
+            containers.forEach(container => {
+                container.addEventListener('touchstart', handleTouchStart, false);
+                container.addEventListener('touchmove', handleTouchMove, false);
+                container.addEventListener('touchend', handleTouchEnd, false);
+            });
+        };
+
+        const getDragAfterElement = (container, y) => {
             const draggableElements = [...container.querySelectorAll('.mode-button-container:not(.dragging)')];
 
             return draggableElements.reduce((closest, child) => {
@@ -748,16 +742,16 @@
                     return closest;
                 }
             }, { offset: Number.NEGATIVE_INFINITY }).element;
-        }
+        };
 
-        function copyResult() {
+        const copyResult = () => {
             const resultElement = document.getElementById('result');
             resultElement.select();
             document.execCommand('copy');
             showNotification();
-        }
+        };
 
-        function showNotification() {
+        const showNotification = () => {
             const notification = document.getElementById('notification');
             notification.style.display = 'block';
             setTimeout(() => {
@@ -770,36 +764,95 @@
                     notification.style.display = 'none';
                 }, 300);
             }, 2000);
-        }
+        };
 
-        function toggleSidebar() {
+        // Оптимизация функции toggleSidebar
+        const toggleSidebar = () => {
+            console.log('toggleSidebar вызван');
             const sidebar = document.getElementById('sidebar');
             const content = document.getElementById('content');
+            if (!sidebar || !content) {
+                console.error('Не найден sidebar или content');
+                return;
+            }
             sidebar.classList.toggle('open');
             document.body.classList.toggle('sidebar-open');
+            console.log('Состояние сайдбара:', sidebar.classList.contains('open') ? 'открыт' : 'закрыт');
             
             if (sidebar.classList.contains('open')) {
-                content.style.marginLeft = '80%';
-                // Добавляем обработчик клика вне сайдбара
                 document.addEventListener('click', closeSidebarOutside);
             } else {
-                content.style.marginLeft = '0';
-                // Удаляем обработчик клика при закрытии сайдбара
                 document.removeEventListener('click', closeSidebarOutside);
             }
-        }
+        };
 
-        function closeSidebarOutside(event) {
+        const closeSidebarOutside = (event) => {
+            console.log('closeSidebarOutside вызван');
             const sidebar = document.getElementById('sidebar');
             const burgerMenu = document.getElementById('burger-menu');
             
-            // Проверяем, был ли клик вне сайдбара и не на кнопке бургер-меню
             if (!sidebar.contains(event.target) && event.target !== burgerMenu) {
+                console.log('Закрытие сайдбара');
                 toggleSidebar();
             }
-        }
+        };
 
-        function handleResize() {
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM полностью загружен');
+            createModeButtons();
+            applyTheme();
+            
+            const processButton = document.getElementById('process-button');
+            if (processButton) {
+                processButton.addEventListener('click', processText);
+                console.log('Обработчик для кнопки обработки добавлен');
+            } else {
+                console.error('Кнопка обработки не найдена');
+            }
+
+            const copyButton = document.getElementById('copy-button');
+            if (copyButton) {
+                copyButton.addEventListener('click', copyResult);
+                console.log('Обработчик для кнопки копирования добавлен');
+            } else {
+                console.error('Кнопка копирования не найдена');
+            }
+
+            const burgerMenu = document.getElementById('burger-menu');
+            if (burgerMenu) {
+                burgerMenu.addEventListener('click', (event) => {
+                    console.log('Клик по бургер-меню');
+                    event.stopPropagation();
+                    toggleSidebar();
+                });
+                console.log('Обработчик для бургер-меню добавлен');
+            } else {
+                console.error('Бургер-меню не найдено');
+            }
+
+            const closeButton = document.getElementById('close-button');
+            if (closeButton) {
+                closeButton.addEventListener('click', toggleSidebar);
+                console.log('Обработчик для кнопки закрытия добавлен');
+            } else {
+                console.error('Кнопка закрытия не найдена');
+            }
+
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+                console.log('Обработчик для переключателя темы добавлен');
+            } else {
+                console.error('Переключатель темы не найден');
+            }
+
+            window.addEventListener('resize', handleResize);
+            console.log('Обработчик изменения размера окна добавлен');
+        });
+
+        const handleResize = () => {
+            console.log('Изменение размера окна');
             if (window.innerWidth <= 768) {
                 document.querySelectorAll('.drag-handle').forEach(handle => {
                     handle.style.display = 'none';
@@ -809,7 +862,7 @@
                     handle.style.display = 'block';
                 });
             }
-        }
+        };
 
         const style = document.createElement('style');
         style.textContent = `
@@ -841,37 +894,6 @@
             }
             updateThemeToggleIcon();
         }
-
-        // Инициализация кнопок и первого режима
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM fully loaded');
-            createModeButtons();
-            applyTheme();
-            
-            const processButton = document.getElementById('process-button');
-            if (processButton) {
-                processButton.addEventListener('click', processText);
-            }
-
-            const copyButton = document.getElementById('copy-button');
-            if (copyButton) {
-                copyButton.addEventListener('click', copyResult);
-            }
-
-            const burgerMenu = document.getElementById('burger-menu');
-            const closeButton = document.getElementById('close-button');
-            
-            burgerMenu.addEventListener('click', function(event) {
-                event.stopPropagation(); // Предотвращаем всплытие события
-                toggleSidebar();
-            });
-            closeButton.addEventListener('click', toggleSidebar);
-
-            const themeToggle = document.getElementById('theme-toggle');
-            themeToggle.addEventListener('click', toggleTheme);
-
-            window.addEventListener('resize', handleResize);
-        });
     </script>
 </body>
 </html>
