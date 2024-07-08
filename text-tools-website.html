@@ -271,8 +271,78 @@
             {id: 'numberLines', name: 'Пронумеровать строки'},
             {id: 'extractLinks', name: 'Извлечь ссылки'},
             {id: 'sortLines', name: 'Сортировать'},
-            {id: 'removeEmptyLines', name: 'Удалить пустые строки'}
+            {id: 'removeEmptyLines', name: 'Удалить пустые строки'},
+            {id: 'removeCharacters', name: 'Удалить символы из списка'},
+            {id: 'removeTextAroundSymbol', name: 'Удалить текст до/после символа'}
         ];
+
+        console.log('Modes:', modes);
+
+        function createModeButtons() {
+            console.log('Creating mode buttons');
+            const modeButtons = document.getElementById('mode-buttons');
+            if (!modeButtons) {
+                console.error('Element with id "mode-buttons" not found');
+                return;
+            }
+            modeButtons.innerHTML = '';
+            
+            let order = JSON.parse(localStorage.getItem('buttonOrder')) || modes.map(mode => mode.id);
+            console.log('Initial order from localStorage:', order);
+            
+            // Проверяем, есть ли в order все режимы из modes
+            const missingModes = modes.filter(mode => !order.includes(mode.id));
+            if (missingModes.length > 0) {
+                console.log('Adding missing modes to order:', missingModes);
+                order = [...order, ...missingModes.map(mode => mode.id)];
+                localStorage.setItem('buttonOrder', JSON.stringify(order));
+            }
+            
+            console.log('Updated button order:', order);
+            
+            order.forEach((modeId, index) => {
+                const mode = modes.find(m => m.id === modeId);
+                console.log('Creating button for mode:', mode);
+                if (mode) {
+                    const container = document.createElement('div');
+                    container.className = 'mode-button-container';
+                    container.draggable = true;
+                    container.dataset.modeId = mode.id;
+
+                    const dragHandle = document.createElement('div');
+                    dragHandle.className = 'drag-handle';
+
+                    const button = document.createElement('button');
+                    button.className = 'mode-button';
+                    button.textContent = mode.name;
+                    button.dataset.modeId = mode.id;
+                    button.addEventListener('click', function() {
+                        setMode(this.dataset.modeId);
+                    });
+
+                    container.appendChild(dragHandle);
+                    container.appendChild(button);
+                    modeButtons.appendChild(container);
+
+                    // Устанавливаем первую кнопку в списке как активную по умолчанию
+                    if (index === 0) {
+                        setMode(mode.id);
+                    }
+                } else {
+                    console.warn('Mode not found for id:', modeId);
+                }
+            });
+
+            addDragListeners();
+            addTouchDragListeners(); // Добавляем поддержку перетаскивания на сенсорных устройствах
+
+            if (window.innerWidth <= 768) {
+                document.querySelectorAll('.drag-handle').forEach(handle => {
+                    handle.style.display = 'none';
+                });
+            }
+            console.log('Mode buttons created');
+        }
 
         function setMode(mode) {
             currentMode = mode;
@@ -331,6 +401,20 @@
                         <select id="sortOption">
                             <option value="asc">По возрастанию</option>
                             <option value="desc">По убыванию</option>
+                        </select>
+                    `;
+                    break;
+                case 'removeCharacters':
+                    optionsDiv.innerHTML = `
+                        <input type="text" id="charactersToRemove" placeholder="Символы для удаления" value="@#%^:&*()?!<>/'{}[]~«»">
+                    `;
+                    break;
+                case 'removeTextAroundSymbol':
+                    optionsDiv.innerHTML = `
+                        <input type="text" id="symbolToRemoveAround" placeholder="Символ" maxlength="1">
+                        <select id="removeDirection">
+                            <option value="before">Удалить до символа</option>
+                            <option value="after">Удалить после символа</option>
                         </select>
                     `;
                     break;
@@ -403,6 +487,29 @@
                 case 'removeEmptyLines':
                     result = uniqueLines.filter(line => line.trim() !== '').join('\n');
                     break;
+                case 'removeCharacters':
+                    const charactersToRemove = document.getElementById('charactersToRemove').value;
+                    const regex = new RegExp(`[${charactersToRemove.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}]`, 'g');
+                    result = uniqueLines
+                        .map(line => line.replace(regex, ''))
+                        .filter(line => line.trim() !== '') // Удаляем пустые строки
+                        .join('\n');
+                    break;
+                case 'removeTextAroundSymbol':
+                    const symbol = document.getElementById('symbolToRemoveAround').value;
+                    const direction = document.getElementById('removeDirection').value;
+                    if (symbol) {
+                        result = uniqueLines.map(line => {
+                            const index = line.indexOf(symbol);
+                            if (index !== -1) {
+                                return direction === 'before' ? line.slice(index) : line.slice(0, index + 1);
+                            }
+                            return line;
+                        }).join('\n');
+                    } else {
+                        result = uniqueLines.join('\n');
+                    }
+                    break;
                 default:
                     result = uniqueLines.join('\n');
             }
@@ -413,49 +520,11 @@
             }
         }
 
-        function createModeButtons() {
-            const modeButtons = document.getElementById('mode-buttons');
-            modeButtons.innerHTML = '';
-            
-            const order = JSON.parse(localStorage.getItem('buttonOrder')) || modes.map(mode => mode.id);
-            
-            order.forEach((modeId, index) => {
-                const mode = modes.find(m => m.id === modeId);
-                if (mode) {
-                    const container = document.createElement('div');
-                    container.className = 'mode-button-container';
-                    container.draggable = true;
-                    container.dataset.modeId = mode.id;
-
-                    const dragHandle = document.createElement('div');
-                    dragHandle.className = 'drag-handle';
-
-                    const button = document.createElement('button');
-                    button.className = 'mode-button';
-                    button.textContent = mode.name;
-                    button.dataset.modeId = mode.id;
-                    button.addEventListener('click', function() {
-                        setMode(this.dataset.modeId);
-                    });
-
-                    container.appendChild(dragHandle);
-                    container.appendChild(button);
-                    modeButtons.appendChild(container);
-
-                    // Устанавливаем первую кнопку в списке как активную по умолчанию
-                    if (index === 0) {
-                        setMode(mode.id);
-                    }
-                }
-            });
-
-            addDragListeners();
-
-            if (window.innerWidth <= 768) {
-                document.querySelectorAll('.drag-handle').forEach(handle => {
-                    handle.style.display = 'none';
-                });
-            }
+        // Добавьте эту функцию для обновления порядка кнопок в localStorage
+        function saveButtonOrder() {
+            const order = Array.from(document.querySelectorAll('.mode-button-container'))
+                .map(container => container.dataset.modeId);
+            localStorage.setItem('buttonOrder', JSON.stringify(order));
         }
 
         function addDragListeners() {
@@ -484,61 +553,6 @@
 
             modeButtons.addEventListener('dragenter', (e) => e.preventDefault());
             modeButtons.addEventListener('drop', (e) => e.preventDefault());
-        }
-
-        function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll('.mode-button-container:not(.dragging)')];
-
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
-        }
-
-        function saveButtonOrder() {
-            const order = Array.from(document.querySelectorAll('.mode-button-container'))
-                .map(container => container.dataset.modeId);
-            localStorage.setItem('buttonOrder', JSON.stringify(order));
-        }
-
-        function copyResult() {
-            const resultElement = document.getElementById('result');
-            resultElement.select();
-            document.execCommand('copy');
-            showNotification();
-        }
-
-        function showNotification() {
-            const notification = document.getElementById('notification');
-            notification.style.display = 'block';
-            setTimeout(() => {
-                notification.style.opacity = '1';
-            }, 10);
-            
-            setTimeout(() => {
-                notification.style.opacity = '0';
-                setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 300);
-            }, 2000);
-        }
-
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const content = document.getElementById('content');
-            sidebar.classList.toggle('open');
-            document.body.classList.toggle('sidebar-open');
-            
-            if (sidebar.classList.contains('open')) {
-                content.style.marginLeft = '80%';
-            } else {
-                content.style.marginLeft = '0';
-            }
         }
 
         function addTouchDragListeners() {
@@ -583,6 +597,55 @@
             }
         }
 
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.mode-button-container:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function copyResult() {
+            const resultElement = document.getElementById('result');
+            resultElement.select();
+            document.execCommand('copy');
+            showNotification();
+        }
+
+        function showNotification() {
+            const notification = document.getElementById('notification');
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.style.opacity = '1';
+            }, 10);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 300);
+            }, 2000);
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            sidebar.classList.toggle('open');
+            document.body.classList.toggle('sidebar-open');
+            
+            if (sidebar.classList.contains('open')) {
+                content.style.marginLeft = '80%';
+            } else {
+                content.style.marginLeft = '0';
+            }
+        }
+
         function handleResize() {
             if (window.innerWidth <= 768) {
                 document.querySelectorAll('.drag-handle').forEach(handle => {
@@ -605,6 +668,7 @@
 
         // Инициализация кнопок и первого режима
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM fully loaded');
             createModeButtons();
 
             const processButton = document.getElementById('process-button');
@@ -622,8 +686,6 @@
             
             burgerMenu.addEventListener('click', toggleSidebar);
             closeButton.addEventListener('click', toggleSidebar);
-
-            addTouchDragListeners();
 
             window.addEventListener('resize', handleResize);
         });
