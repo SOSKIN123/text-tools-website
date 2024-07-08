@@ -93,10 +93,139 @@
         .dragging {
             opacity: 0.5;
         }
+        .copy-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+        }
+        
+        .copy-button svg {
+            width: 20px;
+            height: 20px;
+            fill: #4CAF50;
+        }
+        
+        #result-container {
+            position: relative;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .burger-menu {
+            display: none;
+            cursor: pointer;
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+        }
+
+        .burger-menu div {
+            width: 35px;
+            height: 5px;
+            background-color: #333;
+            margin: 6px 0;
+            transition: 0.4s;
+        }
+
+        .close-button {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #fff;
+            background-color: #4CAF50;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            border-radius: 50%;
+        }
+
+        .close-button:hover {
+            background-color: #45a049;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                height: auto;
+            }
+            #sidebar {
+                position: fixed;
+                left: -250px;
+                top: 0;
+                height: 100%;
+                width: 250px;
+                transition: 0.3s;
+                z-index: 999;
+                padding-top: 50px;
+            }
+            #sidebar.open {
+                left: 0;
+            }
+            .burger-menu {
+                display: block;
+            }
+            #content {
+                margin-left: 0;
+                width: 100%;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            textarea, input[type="text"], select {
+                font-size: 14px;
+            }
+            button {
+                font-size: 14px;
+                padding: 8px 16px;
+            }
+            .mode-button-container {
+                margin-bottom: 5px;
+            }
+            .mode-button {
+                padding: 8px;
+                font-size: 14px;
+            }
+            .drag-handle {
+                display: block;
+                touch-action: none;
+            }
+            #result {
+                height: 200px;
+            }
+            .close-button {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
+    <div class="burger-menu" id="burger-menu">
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
     <div id="sidebar">
+        <span class="close-button" id="close-button">&times;</span>
         <h2>Режимы</h2>
         <div id="mode-buttons"></div>
     </div>
@@ -105,15 +234,24 @@
         <textarea id="input" placeholder="Введите текст здесь..."></textarea>
         <div id="options"></div>
         <button id="process-button">Обработать</button>
-        <textarea id="result" readonly></textarea>
+        <div id="result-container">
+            <textarea id="result" readonly></textarea>
+            <button class="copy-button" id="copy-button" title="Копировать результат">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                </svg>
+            </button>
+        </div>
     </div>
+
+    <div id="notification" class="notification">Результат скопирован в буфер обмена!</div>
 
     <script>
         let currentMode = '';
         let draggedItem = null;
         const modes = [
             {id: 'removeDuplicates', name: 'Удалить дубликаты строк'},
-            {id: 'shuffleLines', name: 'Перемешать строки'},
+            {id: 'shuffleLines', name: 'Перемать строки'},
             {id: 'changeCase', name: 'Изменить регистр'},
             {id: 'addPrefix', name: 'Добавить префикс'},
             {id: 'addSuffix', name: 'Добавить суффикс'},
@@ -244,7 +382,7 @@
                     result = inputValue.split('\n').filter(line => line.trim() !== '').join('\n');
                     break;
                 default:
-                    result = 'Выберите режим обработки';
+                    result = 'Выберите ржим обработки';
             }
 
             const resultElement = document.getElementById('result');
@@ -285,6 +423,12 @@
             });
 
             addDragListeners();
+
+            if (window.innerWidth <= 768) {
+                document.querySelectorAll('.drag-handle').forEach(handle => {
+                    handle.style.display = 'none';
+                });
+            }
         }
 
         function addDragListeners() {
@@ -335,6 +479,87 @@
             localStorage.setItem('buttonOrder', JSON.stringify(order));
         }
 
+        function copyResult() {
+            const resultElement = document.getElementById('result');
+            resultElement.select();
+            document.execCommand('copy');
+            showNotification();
+        }
+
+        function showNotification() {
+            const notification = document.getElementById('notification');
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.style.opacity = '1';
+            }, 10);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 300);
+            }, 2000);
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        function addTouchDragListeners() {
+            const containers = document.querySelectorAll('.mode-button-container');
+            const modeButtons = document.getElementById('mode-buttons');
+
+            containers.forEach(container => {
+                container.addEventListener('touchstart', handleTouchStart, false);
+                container.addEventListener('touchmove', handleTouchMove, false);
+                container.addEventListener('touchend', handleTouchEnd, false);
+            });
+
+            let draggedItem = null;
+            let startY;
+
+            function handleTouchStart(e) {
+                draggedItem = this;
+                startY = e.touches[0].clientY - draggedItem.offsetTop;
+                setTimeout(() => draggedItem.classList.add('dragging'), 0);
+            }
+
+            function handleTouchMove(e) {
+                if (!draggedItem) return;
+                e.preventDefault();
+                const currentY = e.touches[0].clientY - modeButtons.offsetTop;
+                draggedItem.style.top = `${currentY - startY}px`;
+
+                const afterElement = getDragAfterElement(modeButtons, currentY);
+                if (afterElement) {
+                    modeButtons.insertBefore(draggedItem, afterElement);
+                } else {
+                    modeButtons.appendChild(draggedItem);
+                }
+            }
+
+            function handleTouchEnd() {
+                if (!draggedItem) return;
+                draggedItem.classList.remove('dragging');
+                draggedItem.style.top = '';
+                draggedItem = null;
+                saveButtonOrder();
+            }
+        }
+
+        function handleResize() {
+            if (window.innerWidth <= 768) {
+                document.querySelectorAll('.drag-handle').forEach(handle => {
+                    handle.style.display = 'none';
+                });
+            } else {
+                document.querySelectorAll('.drag-handle').forEach(handle => {
+                    handle.style.display = 'block';
+                });
+            }
+        }
+
         // Инициализация кнопок и первого режима
         document.addEventListener('DOMContentLoaded', function() {
             createModeButtons();
@@ -344,6 +569,21 @@
             if (processButton) {
                 processButton.addEventListener('click', processText);
             }
+
+            const copyButton = document.getElementById('copy-button');
+            if (copyButton) {
+                copyButton.addEventListener('click', copyResult);
+            }
+
+            const burgerMenu = document.getElementById('burger-menu');
+            const closeButton = document.getElementById('close-button');
+            
+            burgerMenu.addEventListener('click', toggleSidebar);
+            closeButton.addEventListener('click', toggleSidebar);
+
+            addTouchDragListeners();
+
+            window.addEventListener('resize', handleResize);
         });
     </script>
 </body>
