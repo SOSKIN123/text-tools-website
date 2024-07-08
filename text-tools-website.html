@@ -241,7 +241,7 @@
         <div id="mode-buttons"></div>
     </div>
     <div id="content">
-        <h1>Инструменты для работы с текстом</h1>
+        <h1 id="current-mode-title">Инструменты для работы с текстом</h1>
         <textarea id="input" placeholder="Введите текст здесь..."></textarea>
         <div id="options"></div>
         <button id="process-button">Обработать</button>
@@ -262,7 +262,7 @@
         let draggedItem = null;
         const modes = [
             {id: 'removeDuplicates', name: 'Удалить дубликаты строк'},
-            {id: 'shuffleLines', name: 'Перемать строки'},
+            {id: 'shuffleLines', name: 'Перемешать строки'},
             {id: 'changeCase', name: 'Изменить регистр'},
             {id: 'addPrefix', name: 'Добавить префикс'},
             {id: 'addSuffix', name: 'Добавить суффикс'},
@@ -280,8 +280,16 @@
             const activeButton = document.querySelector(`.mode-button[data-mode-id="${mode}"]`);
             if (activeButton) {
                 activeButton.classList.add('active');
+                // Обновляем заголовок с названием текущего режима
+                const currentModeTitle = document.getElementById('current-mode-title');
+                currentModeTitle.textContent = activeButton.textContent;
             }
             updateOptions();
+
+            // Закрываем меню на мобильных устройствах после выбора режима
+            if (window.innerWidth <= 768) {
+                toggleSidebar();
+            }
         }
 
         function updateOptions() {
@@ -292,7 +300,7 @@
                 case 'changeCase':
                     optionsDiv.innerHTML = `
                         <select id="caseOption">
-                            <option value="upper">Верхни регистр</option>
+                            <option value="upper">Верхний регистр</option>
                             <option value="lower">Нижний регистр</option>
                         </select>
                     `;
@@ -335,35 +343,38 @@
             const inputValue = input.value;
             let result = '';
 
+            // Всегда удаляем дубликаты строк
+            const uniqueLines = [...new Set(inputValue.split('\n'))];
+
             switch (currentMode) {
                 case 'removeDuplicates':
-                    result = [...new Set(inputValue.split('\n'))].join('\n');
+                    result = uniqueLines.join('\n');
                     break;
                 case 'shuffleLines':
-                    result = inputValue.split('\n').sort(() => Math.random() - 0.5).join('\n');
+                    result = uniqueLines.sort(() => Math.random() - 0.5).join('\n');
                     break;
                 case 'changeCase':
                     const caseOption = document.getElementById('caseOption').value;
-                    result = caseOption === 'upper' ? inputValue.toUpperCase() : inputValue.toLowerCase();
+                    result = caseOption === 'upper' ? uniqueLines.join('\n').toUpperCase() : uniqueLines.join('\n').toLowerCase();
                     break;
                 case 'addPrefix':
                     const prefix = document.getElementById('affix').value;
-                    result = inputValue.split('\n').map(line => prefix + line).join('\n');
+                    result = uniqueLines.map(line => prefix + line).join('\n');
                     break;
                 case 'addSuffix':
                     const suffix = document.getElementById('affix').value;
-                    result = inputValue.split('\n').map(line => line + suffix).join('\n');
+                    result = uniqueLines.map(line => line + suffix).join('\n');
                     break;
                 case 'textStatistics':
-                    const lines = inputValue.split('\n');
-                    const words = inputValue.match(/\S+/g) || [];
-                    const chars = inputValue.length;
+                    const lines = uniqueLines;
+                    const words = uniqueLines.join('\n').match(/\S+/g) || [];
+                    const chars = uniqueLines.join('\n').length;
                     result = `Строк: ${lines.length}\nСлов: ${words.length}\nСимволов: ${chars}`;
                     break;
                 case 'findAndReplace':
                     const findText = document.getElementById('findText').value;
                     const replaceText = document.getElementById('replaceText').value;
-                    result = inputValue.replace(new RegExp(findText, 'g'), replaceText);
+                    result = uniqueLines.join('\n').replace(new RegExp(findText, 'g'), replaceText);
                     break;
                 case 'numberLines':
                     const format = document.getElementById('numberFormat').value;
@@ -379,21 +390,21 @@
                             formatStr = ' ';
                             break;
                     }
-                    result = inputValue.split('\n').map((line, index) => `${index + 1}${formatStr}${line}`).join('\n');
+                    result = uniqueLines.map((line, index) => `${index + 1}${formatStr}${line}`).join('\n');
                     break;
                 case 'extractLinks':
                     const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9._-]+\.[a-zA-Z]{2,6}(?:\/[^\s]*)?)/g;
-                    result = (inputValue.match(urlRegex) || []).join('\n');
+                    result = (uniqueLines.join('\n').match(urlRegex) || []).join('\n');
                     break;
                 case 'sortLines':
                     const sortOption = document.getElementById('sortOption').value;
-                    result = inputValue.split('\n').sort((a, b) => sortOption === 'asc' ? a.localeCompare(b) : b.localeCompare(a)).join('\n');
+                    result = uniqueLines.sort((a, b) => sortOption === 'asc' ? a.localeCompare(b) : b.localeCompare(a)).join('\n');
                     break;
                 case 'removeEmptyLines':
-                    result = inputValue.split('\n').filter(line => line.trim() !== '').join('\n');
+                    result = uniqueLines.filter(line => line.trim() !== '').join('\n');
                     break;
                 default:
-                    result = 'Выберите ржим обработки';
+                    result = uniqueLines.join('\n');
             }
 
             const resultElement = document.getElementById('result');
@@ -408,7 +419,7 @@
             
             const order = JSON.parse(localStorage.getItem('buttonOrder')) || modes.map(mode => mode.id);
             
-            order.forEach(modeId => {
+            order.forEach((modeId, index) => {
                 const mode = modes.find(m => m.id === modeId);
                 if (mode) {
                     const container = document.createElement('div');
@@ -430,6 +441,11 @@
                     container.appendChild(dragHandle);
                     container.appendChild(button);
                     modeButtons.appendChild(container);
+
+                    // Устанавливаем первую кнопку в списке как активную по умолчанию
+                    if (index === 0) {
+                        setMode(mode.id);
+                    }
                 }
             });
 
@@ -590,7 +606,6 @@
         // Инициализация кнопок и первого режима
         document.addEventListener('DOMContentLoaded', function() {
             createModeButtons();
-            setMode('removeDuplicates');
 
             const processButton = document.getElementById('process-button');
             if (processButton) {
