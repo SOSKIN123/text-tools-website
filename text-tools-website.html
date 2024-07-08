@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Инструменты для работы с текстом</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        #sidebar {
+            width: 250px;
+            background-color: #333;
+            color: white;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        #content {
+            flex-grow: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            border-radius: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        textarea, input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        textarea {
+            height: 300px;
+            resize: vertical;
+        }
+        #result {
+            height: 300px;
+            margin-top: 10px;
+        }
+        .mode-button-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .mode-button {
+            flex-grow: 1;
+            text-align: left;
+            padding: 10px;
+            background-color: #444;
+            color: white;
+            border: none;
+            transition: background-color 0.3s;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .mode-button:hover {
+            background-color: #555;
+        }
+        .active {
+            background-color: #4CAF50;
+        }
+        .drag-handle {
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+            cursor: move;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='white'%3E%3Cpath d='M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .dragging {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h2>Режимы</h2>
+        <div id="mode-buttons"></div>
+    </div>
+    <div id="content">
+        <h1>Инструменты для работы с текстом</h1>
+        <textarea id="input" placeholder="Введите текст здесь..."></textarea>
+        <div id="options"></div>
+        <button id="process-button">Обработать</button>
+        <textarea id="result" readonly></textarea>
+    </div>
+
+    <script>
+        let currentMode = '';
+        let draggedItem = null;
+        const modes = [
+            {id: 'removeDuplicates', name: 'Удалить дубликаты строк'},
+            {id: 'shuffleLines', name: 'Перемешать строки'},
+            {id: 'changeCase', name: 'Изменить регистр'},
+            {id: 'addPrefix', name: 'Добавить префикс'},
+            {id: 'addSuffix', name: 'Добавить суффикс'},
+            {id: 'textStatistics', name: 'Статистика текста'},
+            {id: 'findAndReplace', name: 'Найти и заменить'},
+            {id: 'numberLines', name: 'Пронумеровать строки'},
+            {id: 'extractLinks', name: 'Извлечь ссылки'},
+            {id: 'sortLines', name: 'Сортировать'},
+            {id: 'removeEmptyLines', name: 'Удалить пустые строки'}
+        ];
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-button').forEach(btn => btn.classList.remove('active'));
+            const activeButton = document.querySelector(`.mode-button[data-mode-id="${mode}"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+            updateOptions();
+        }
+
+        function updateOptions() {
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+
+            switch (currentMode) {
+                case 'changeCase':
+                    optionsDiv.innerHTML = `
+                        <select id="caseOption">
+                            <option value="upper">Верхни регистр</option>
+                            <option value="lower">Нижний регистр</option>
+                        </select>
+                    `;
+                    break;
+                case 'addPrefix':
+                case 'addSuffix':
+                    optionsDiv.innerHTML = `
+                        <input type="text" id="affix" placeholder="${currentMode === 'addPrefix' ? 'Префикс' : 'Суффикс'}">
+                    `;
+                    break;
+                case 'findAndReplace':
+                    optionsDiv.innerHTML = `
+                        <input type="text" id="findText" placeholder="Найти">
+                        <input type="text" id="replaceText" placeholder="Заменить на">
+                    `;
+                    break;
+                case 'numberLines':
+                    optionsDiv.innerHTML = `
+                        <select id="numberFormat">
+                            <option value="bracket">1) </option>
+                            <option value="dot">1. </option>
+                            <option value="space">1 </option>
+                        </select>
+                    `;
+                    break;
+                case 'sortLines':
+                    optionsDiv.innerHTML = `
+                        <select id="sortOption">
+                            <option value="asc">По возрастанию</option>
+                            <option value="desc">По убыванию</option>
+                        </select>
+                    `;
+                    break;
+            }
+        }
+
+        function processText() {
+            const input = document.getElementById('input');
+            if (!input) return;
+            const inputValue = input.value;
+            let result = '';
+
+            switch (currentMode) {
+                case 'removeDuplicates':
+                    result = [...new Set(inputValue.split('\n'))].join('\n');
+                    break;
+                case 'shuffleLines':
+                    result = inputValue.split('\n').sort(() => Math.random() - 0.5).join('\n');
+                    break;
+                case 'changeCase':
+                    const caseOption = document.getElementById('caseOption').value;
+                    result = caseOption === 'upper' ? inputValue.toUpperCase() : inputValue.toLowerCase();
+                    break;
+                case 'addPrefix':
+                    const prefix = document.getElementById('affix').value;
+                    result = inputValue.split('\n').map(line => prefix + line).join('\n');
+                    break;
+                case 'addSuffix':
+                    const suffix = document.getElementById('affix').value;
+                    result = inputValue.split('\n').map(line => line + suffix).join('\n');
+                    break;
+                case 'textStatistics':
+                    const lines = inputValue.split('\n');
+                    const words = inputValue.match(/\S+/g) || [];
+                    const chars = inputValue.length;
+                    result = `Строк: ${lines.length}\nСлов: ${words.length}\nСимволов: ${chars}`;
+                    break;
+                case 'findAndReplace':
+                    const findText = document.getElementById('findText').value;
+                    const replaceText = document.getElementById('replaceText').value;
+                    result = inputValue.replace(new RegExp(findText, 'g'), replaceText);
+                    break;
+                case 'numberLines':
+                    const format = document.getElementById('numberFormat').value;
+                    let formatStr;
+                    switch (format) {
+                        case 'bracket':
+                            formatStr = ') ';
+                            break;
+                        case 'dot':
+                            formatStr = '. ';
+                            break;
+                        case 'space':
+                            formatStr = ' ';
+                            break;
+                    }
+                    result = inputValue.split('\n').map((line, index) => `${index + 1}${formatStr}${line}`).join('\n');
+                    break;
+                case 'extractLinks':
+                    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9._-]+\.[a-zA-Z]{2,6}(?:\/[^\s]*)?)/g;
+                    result = (inputValue.match(urlRegex) || []).join('\n');
+                    break;
+                case 'sortLines':
+                    const sortOption = document.getElementById('sortOption').value;
+                    result = inputValue.split('\n').sort((a, b) => sortOption === 'asc' ? a.localeCompare(b) : b.localeCompare(a)).join('\n');
+                    break;
+                case 'removeEmptyLines':
+                    result = inputValue.split('\n').filter(line => line.trim() !== '').join('\n');
+                    break;
+                default:
+                    result = 'Выберите режим обработки';
+            }
+
+            const resultElement = document.getElementById('result');
+            if (resultElement) {
+                resultElement.value = result;
+            }
+        }
+
+        function createModeButtons() {
+            const modeButtons = document.getElementById('mode-buttons');
+            modeButtons.innerHTML = '';
+            
+            const order = JSON.parse(localStorage.getItem('buttonOrder')) || modes.map(mode => mode.id);
+            
+            order.forEach(modeId => {
+                const mode = modes.find(m => m.id === modeId);
+                if (mode) {
+                    const container = document.createElement('div');
+                    container.className = 'mode-button-container';
+                    container.draggable = true;
+                    container.dataset.modeId = mode.id;
+
+                    const dragHandle = document.createElement('div');
+                    dragHandle.className = 'drag-handle';
+
+                    const button = document.createElement('button');
+                    button.className = 'mode-button';
+                    button.textContent = mode.name;
+                    button.dataset.modeId = mode.id;
+                    button.addEventListener('click', function() {
+                        setMode(this.dataset.modeId);
+                    });
+
+                    container.appendChild(dragHandle);
+                    container.appendChild(button);
+                    modeButtons.appendChild(container);
+                }
+            });
+
+            addDragListeners();
+        }
+
+        function addDragListeners() {
+            const containers = document.querySelectorAll('.mode-button-container');
+            const modeButtons = document.getElementById('mode-buttons');
+
+            containers.forEach(container => {
+                container.addEventListener('dragstart', (e) => {
+                    draggedItem = container;
+                    setTimeout(() => container.classList.add('dragging'), 0);
+                });
+
+                container.addEventListener('dragend', () => {
+                    container.classList.remove('dragging');
+                    saveButtonOrder();
+                });
+            });
+
+            modeButtons.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(modeButtons, e.clientY);
+                if (draggedItem && afterElement) {
+                    modeButtons.insertBefore(draggedItem, afterElement);
+                }
+            });
+
+            modeButtons.addEventListener('dragenter', (e) => e.preventDefault());
+            modeButtons.addEventListener('drop', (e) => e.preventDefault());
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.mode-button-container:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function saveButtonOrder() {
+            const order = Array.from(document.querySelectorAll('.mode-button-container'))
+                .map(container => container.dataset.modeId);
+            localStorage.setItem('buttonOrder', JSON.stringify(order));
+        }
+
+        // Инициализация кнопок и первого режима
+        document.addEventListener('DOMContentLoaded', function() {
+            createModeButtons();
+            setMode('removeDuplicates');
+
+            const processButton = document.getElementById('process-button');
+            if (processButton) {
+                processButton.addEventListener('click', processText);
+            }
+        });
+    </script>
+</body>
+</html>
