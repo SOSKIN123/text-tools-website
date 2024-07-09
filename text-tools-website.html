@@ -19,6 +19,46 @@
             color: white;
             padding: 20px;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #mode-buttons {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+        #theme-toggle {
+            margin-top: 20px;
+            align-self: center;
+            width: 60px;
+            height: 60px;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        #theme-toggle svg {
+            width: 40px;
+            height: 40px;
+            fill: #f0f0f0;
+            transition: fill 0.2s ease;
+        }
+        body.dark-mode #theme-toggle svg {
+            fill: #f0f0f0;
+        }
+        @media (max-width: 768px) {
+            #sidebar {
+                padding-top: 50px;
+            }
+            #theme-toggle {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+            }
         }
         #content {
             flex-grow: 1;
@@ -260,47 +300,6 @@
             background-color: #45a049;
         }
 
-        /* Стили для кнопки переключения темы */
-        #theme-toggle {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 60px;
-            height: 60px;
-            background-color: #f0f0f0;
-            border: 2px solid #333;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        #theme-toggle:hover {
-            background-color: #e0e0e0;
-        }
-
-        #theme-toggle svg {
-            width: 40px;
-            height: 40px;
-            fill: #333;
-            transition: fill 0.2s ease;
-        }
-
-        body.dark-mode #theme-toggle {
-            background-color: #333;
-            border-color: #f0f0f0;
-        }
-
-        body.dark-mode #theme-toggle:hover {
-            background-color: #444;
-        }
-
-        body.dark-mode #theme-toggle svg {
-            fill: #f0f0f0;
-        }
-
         /* Стили для кнопки копирования в темном режиме */
         body.dark-mode .copy-button svg {
             fill: #1a1a1a;
@@ -422,7 +421,8 @@
             {id: 'sortLines', name: 'Сортировать'},
             {id: 'removeEmptyLines', name: 'Удалить пустые строки'},
             {id: 'removeCharacters', name: 'Удалить символы из списка'},
-            {id: 'removeTextAroundSymbol', name: 'Удалить текст до/после символа'}
+            {id: 'removeTextAroundSymbol', name: 'Удалить текст до/после символа'},
+            {id: 'payVlito', name: 'PayVlito'}
         ];
 
         const STORAGE_KEY = 'buttonOrder';
@@ -479,6 +479,19 @@
             if (window.innerWidth <= 768) {
                 document.querySelectorAll('.drag-handle').forEach(handle => handle.style.display = 'none');
             }
+
+            // Ограничение видимых пунктов до 13
+            const visibleButtons = 13;
+            const containers = modeButtons.querySelectorAll('.mode-button-container');
+            if (containers.length > visibleButtons) {
+                containers.forEach((container, index) => {
+                    if (index >= visibleButtons) {
+                        container.style.display = 'none';
+                    }
+                });
+                modeButtons.style.overflowY = 'scroll';
+                modeButtons.style.maxHeight = `${visibleButtons * 40}px`; // Предполагаемая высота кнопки 40px
+            }
         };
 
         const setMode = (mode) => {
@@ -493,7 +506,7 @@
             }
             updateOptions();
 
-            // Закрываем меню на мобильных устройствах после выбора режима
+            // Закрываем меню на мобильных устрой��твах после выбора режима
             if (window.innerWidth <= 768) {
                 toggleSidebar();
             }
@@ -555,6 +568,9 @@
                         </select>
                     `;
                     break;
+                case 'payVlito':
+                    // Для PayVlito не нужны дополнительные опции
+                    break;
             }
         };
 
@@ -563,38 +579,37 @@
             const input = document.getElementById('input');
             if (!input) return;
             const inputValue = input.value;
-            const uniqueLines = [...new Set(inputValue.split('\n'))];
+            const lines = inputValue.split('\n');
 
             let result = '';
             switch (currentMode) {
                 case 'removeDuplicates':
-                    result = uniqueLines.join('\n');
+                    result = [...new Set(lines)].join('\n');
                     break;
                 case 'shuffleLines':
-                    result = uniqueLines.sort(() => Math.random() - 0.5).join('\n');
+                    result = lines.sort(() => Math.random() - 0.5).join('\n');
                     break;
                 case 'changeCase':
                     const caseOption = document.getElementById('caseOption').value;
-                    result = caseOption === 'upper' ? uniqueLines.join('\n').toUpperCase() : uniqueLines.join('\n').toLowerCase();
+                    result = caseOption === 'upper' ? lines.join('\n').toUpperCase() : lines.join('\n').toLowerCase();
                     break;
                 case 'addPrefix':
                     const prefix = document.getElementById('affix').value;
-                    result = uniqueLines.map(line => prefix + line).join('\n');
+                    result = lines.map(line => prefix + line).join('\n');
                     break;
                 case 'addSuffix':
                     const suffix = document.getElementById('affix').value;
-                    result = uniqueLines.map(line => line + suffix).join('\n');
+                    result = lines.map(line => line + suffix).join('\n');
                     break;
                 case 'textStatistics':
-                    const lines = uniqueLines;
-                    const words = uniqueLines.join('\n').match(/\S+/g) || [];
-                    const chars = uniqueLines.join('\n').length;
+                    const words = lines.join('\n').match(/\S+/g) || [];
+                    const chars = lines.join('\n').length;
                     result = `Строк: ${lines.length}\nСлов: ${words.length}\nСимволов: ${chars}`;
                     break;
                 case 'findAndReplace':
                     const findText = document.getElementById('findText').value;
                     const replaceText = document.getElementById('replaceText').value;
-                    result = uniqueLines.join('\n').replace(new RegExp(findText, 'g'), replaceText);
+                    result = lines.join('\n').replace(new RegExp(findText, 'g'), replaceText);
                     break;
                 case 'numberLines':
                     const format = document.getElementById('numberFormat').value;
@@ -610,23 +625,23 @@
                             formatStr = ' ';
                             break;
                     }
-                    result = uniqueLines.map((line, index) => `${index + 1}${formatStr}${line}`).join('\n');
+                    result = lines.map((line, index) => `${index + 1}${formatStr}${line}`).join('\n');
                     break;
                 case 'extractLinks':
                     const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9._-]+\.[a-zA-Z]{2,6}(?:\/[^\s]*)?)/g;
-                    result = (uniqueLines.join('\n').match(urlRegex) || []).join('\n');
+                    result = (lines.join('\n').match(urlRegex) || []).join('\n');
                     break;
                 case 'sortLines':
                     const sortOption = document.getElementById('sortOption').value;
-                    result = uniqueLines.sort((a, b) => sortOption === 'asc' ? a.localeCompare(b) : b.localeCompare(a)).join('\n');
+                    result = lines.sort((a, b) => sortOption === 'asc' ? a.localeCompare(b) : b.localeCompare(a)).join('\n');
                     break;
                 case 'removeEmptyLines':
-                    result = uniqueLines.filter(line => line.trim() !== '').join('\n');
+                    result = lines.filter(line => line.trim() !== '').join('\n');
                     break;
                 case 'removeCharacters':
                     const charactersToRemove = document.getElementById('charactersToRemove').value;
                     const regex = new RegExp(`[${charactersToRemove.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}]`, 'g');
-                    result = uniqueLines
+                    result = lines
                         .map(line => line.replace(regex, ''))
                         .filter(line => line.trim() !== '') // Удалям пустые строки
                         .join('\n');
@@ -635,7 +650,7 @@
                     const symbol = document.getElementById('symbolToRemoveAround').value;
                     const direction = document.getElementById('removeDirection').value;
                     if (symbol) {
-                        result = uniqueLines.map(line => {
+                        result = lines.map(line => {
                             const index = line.indexOf(symbol);
                             if (index !== -1) {
                                 return direction === 'before' ? line.slice(index) : line.slice(0, index + 1);
@@ -643,11 +658,20 @@
                             return line;
                         }).join('\n');
                     } else {
-                        result = uniqueLines.join('\n');
+                        result = lines.join('\n');
                     }
                     break;
+                case 'payVlito':
+                    result = lines.map(line => {
+                        const match = line.match(/(\d{16})/);
+                        if (match) {
+                            return `/PayVlito ${match[1]} card`;
+                        }
+                        return '';
+                    }).filter(line => line !== '').join('\n');
+                    break;
                 default:
-                    result = uniqueLines.join('\n');
+                    result = lines.join('\n');
             }
 
             document.getElementById('result').value = result;
