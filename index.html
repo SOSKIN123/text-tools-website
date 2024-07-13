@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Инструменты для работы с текстом</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="burger-menu" id="burger-menu">
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
+    <div id="sidebar">
+        <span class="close-button" id="close-button">&times;</span>
+        <h2>Режимы</h2>
+        <div id="mode-buttons"></div>
+        <button id="theme-toggle" aria-label="Переключить тему">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/>
+            </svg>
+        </button>
+    </div>
+    <div id="content">
+        <h1 id="current-mode-title">Инструменты для работы с текстом</h1>
+        <textarea id="input" placeholder="Введите текст здесь..."></textarea>
+        <div id="options"></div>
+        <button id="process-button">Обработать</button>
+        <div id="result-container">
+            <textarea id="result" readonly></textarea>
+            <button class="copy-button" id="copy-button" title="Копировать результат">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="notification" class="notification">Результат скопирован в буфер обмена!</div>
+
+    <script src="scripts.js"></script>
+</body>
+</html>
